@@ -1,3 +1,4 @@
+import re
 from http import HTTPStatus
 
 from services.request_service import perform_request
@@ -6,13 +7,20 @@ from util.constants import GITHUB_TOKEN, GITHUB_README_URL, SOURCE_LANGUAGE, TAR
 from util.parameters_util import extract_parameters
 
 
-def update_readme_service():
+async def update_readme_service():
     readme = _get_readme(GITHUB_TOKEN)
+    matches = re.findall(r'<.*?class=["\']translate["\'].*?>(.*?)<\/.*?>', readme, re.DOTALL)
     source_language = extract_parameters(readme, SOURCE_LANGUAGE)
     target_language = extract_parameters(readme, TARGET_LANGUAGE)[INDEX_ZERO].split(TARGET_LANGUAGE_SEPARATOR)
+    result = []
 
-    for language in target_language:
-        translated_readme = translate_text(readme, source_language[INDEX_ZERO], language)
+    for i in range(len(matches)):
+        for j in range(len(target_language)):
+            result.append(await translate_text(matches[i].replace('\n', ' ').replace('\r', ''),
+                                               source_language[INDEX_ZERO].lower(),
+                                               target_language[j].lower()))
+
+    return result, 200
 
 
 def _get_readme(github_token):
@@ -20,7 +28,6 @@ def _get_readme(github_token):
         "Authorization": f"Bearer {github_token}",
     }
     response = perform_request(GITHUB_README_URL, "GET", headers)
-    # todo: logica deve ficar no request service
     if response.status_code != HTTPStatus.OK:
         return None
     return response.text
