@@ -1,9 +1,9 @@
 from flask import Flask
-from controllers.github_controller import github_blueprint
+from controllers.readme_controller import readme_blueprint
 
 app = Flask(__name__)
 
-app.register_blueprint(github_blueprint, url_prefix="/github")
+app.register_blueprint(readme_blueprint, url_prefix="/readme")
 
 if __name__ == '__main__':
     app.run(debug=True)
