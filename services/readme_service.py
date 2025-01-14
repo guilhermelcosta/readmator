@@ -34,16 +34,17 @@ async def _translate_segments(languages, segments_to_translate):
 
 def _replace_translated_segments(readme_content, translated_segments, tag_name=STANDARD_TAG_NAME, tag_value=STANDARD_TAG_VALUE):
 
-    # continue
-    matches = re.finditer(rf'<.*?{tag_name}=["\']{tag_value}["\'].*?>(.*?)</.*?>', readme_content, re.DOTALL)
-    match_list = [match.group() for match in matches]
-    text = _extract_segments_to_translate(readme_content)
+    matches = re.finditer(rf'<([a-zA-Z]+)[^>]*\b{tag_name}=["\']{tag_value}["\'][^>]*>(.*?)</.*?>', readme_content, re.DOTALL)
+    match_list_original = [match.group() for match in matches]
+    match_list_2 = match_list_original.copy()
+    test = []
 
+    for i, match in enumerate(match_list_2):
+        test.append(re.sub(r'(>)([^<>]*)(<)', rf'\1{translated_segments[1][i]}\3', match))
 
-    for i, translation_set in enumerate(translated_segments):
-        for j, translated_segment in enumerate(translation_set):
-            readme_content = re.sub(rf'(<.*?{tag_name}=["\']{tag_value}["\'].*?>)(.*?)(</.*?>)', rf'\1{translated_segment}\3',
-                                    readme_content, 1, re.DOTALL)
+    for i, match in enumerate(match_list_original):
+        readme_content = re.sub(match, test[i], readme_content)
+
     return readme_content
 
 
