@@ -1,28 +1,29 @@
 import os
 import re
-from http import HTTPStatus
 
 from dotenv import load_dotenv
 
 from constants.constants import SOURCE_LANGUAGE, TARGET_LANGUAGE, INDEX_ZERO, TARGET_LANGUAGE_SEPARATOR, \
-    INDEX_ONE, GITHUB_README_URL, GITHUB_TOKEN, STANDARD_TAG_NAME, STANDARD_TAG_VALUE
-from services.github_service import create_files
-from services.request_service import perform_request
+    INDEX_ONE, GITHUB_README_URL, GITHUB_TOKEN, STANDARD_TAG_NAME, STANDARD_TAG_VALUE, CURRENT_README_PATH
+from services.github_service import create_files, fetch_readme
 from services.translate_service import translate_text
 from util.formater_util import extract_readme_parameters, sanitize_segment
 
 load_dotenv()
 
 github_token = os.getenv(GITHUB_TOKEN)
+github_url = os.getenv(GITHUB_README_URL)
+current_readme_path = os.getenv(CURRENT_README_PATH)
 
 
 async def update_readme_service():
-    readme_content = _fetch_readme()
-    translated_segments = await _translate_segments(_parse_languages(readme_content), _extract_segments_to_translate(readme_content))
+    readme_content = fetch_readme(github_url, github_token)
+    languages = _parse_languages(readme_content)
+    translated_segments = await _translate_segments(languages, _extract_segments_to_translate(readme_content))
     translated_readmes = _replace_translated_segments(readme_content, translated_segments)
 
-    for i in enumerate(translated_readmes):
-        create_files(f'minha-nova-pasta/arquivo-{i}.txt', os.getenv(GITHUB_TOKEN))
+    for i in range(len(translated_readmes)):
+        create_files(current_readme_path, translated_readmes[i], f'translations/README-{languages[INDEX_ONE][i].upper()}.md', github_token)
 
     return translated_readmes
 
@@ -69,14 +70,6 @@ def replace_translated_segment_inside_html(match_list, translated_segments):
             translated_segment_array.append(re.sub(r'(>)([^<>]*)(<)', rf'\1{translated_segments[i][j]}\3', match))
         translated_segments_with_html.append(translated_segment_array)
     return translated_segments_with_html
-
-
-def _fetch_readme():
-    response = perform_request(os.getenv(GITHUB_README_URL), "GET", github_token)
-    # todo: implement better treatment
-    if not response or response.status_code != HTTPStatus.OK:
-        raise RuntimeError("Failed to fetch the README from GitHub.")
-    return response.text
 
 
 def _extract_segments_to_translate(readme_content, tag_name=STANDARD_TAG_NAME, tag_value=STANDARD_TAG_VALUE):
